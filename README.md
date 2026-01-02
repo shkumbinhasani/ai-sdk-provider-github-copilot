@@ -1,11 +1,11 @@
 # AI SDK Provider for GitHub Copilot
 
-[![npm version](https://img.shields.io/npm/v/ai-sdk-provider-github-copilot?color=00A79E)](https://www.npmjs.com/package/ai-sdk-provider-github-copilot)
-[![License: MIT](https://img.shields.io/npm/l/ai-sdk-provider-github-copilot?color=00A79E)](https://www.npmjs.com/package/ai-sdk-provider-github-copilot)
+[![npm version](https://img.shields.io/npm/v/ai-sdk-provider-github-copilot)](https://www.npmjs.com/package/ai-sdk-provider-github-copilot)
+[![License: MIT](https://img.shields.io/npm/l/ai-sdk-provider-github-copilot)](https://www.npmjs.com/package/ai-sdk-provider-github-copilot)
 
 Use your GitHub Copilot subscription with the [Vercel AI SDK](https://sdk.vercel.ai/docs).
 
-This provider allows you to access models available through GitHub Copilot (GPT-4o, Claude, Gemini, etc.) using the standard AI SDK interface.
+Access GPT-5, Claude, Gemini and other models through GitHub Copilot's API using the standard AI SDK interface.
 
 ## Installation
 
@@ -15,37 +15,57 @@ npm install ai-sdk-provider-github-copilot ai
 
 ## Authentication
 
-Before using the provider, you need to authenticate with GitHub Copilot using the OAuth device flow:
+### Option 1: Device Flow (Recommended)
 
 ```typescript
 import { login } from "ai-sdk-provider-github-copilot";
 
-// This will print a URL and code to enter in your browser
 await login();
 ```
 
-The authentication flow:
+This will:
 
-1. Opens a device code flow with GitHub
-2. You visit the URL and enter the code
-3. Authorize the application
-4. Tokens are stored in `~/.ai-sdk-copilot/auth.json`
+1. Print a URL and code to enter in your browser
+2. You authorize the application
+3. Tokens are stored in `~/.ai-sdk-copilot/auth.json`
 
-### Token Refresh
+### Option 2: Use Existing OpenCode Auth
 
-The provider automatically handles token refresh. GitHub Copilot tokens expire frequently (~30 minutes), but the provider will transparently refresh them using your stored GitHub OAuth token.
+If you already use [OpenCode](https://opencode.ai), the provider automatically reads your existing authentication from `~/.opencode/auth.json`. No additional setup needed.
+
+### Option 3: Custom Token Storage
+
+For production apps, you can provide your own token storage:
+
+```typescript
+import { createCopilot } from "ai-sdk-provider-github-copilot";
+
+const copilot = createCopilot({
+  getTokens: async () => {
+    const tokens = await db.getTokens(userId);
+    return {
+      githubToken: tokens.githubToken,
+      accessToken: tokens.accessToken,
+      expiresAt: tokens.expiresAt,
+    };
+  },
+  onTokenRefresh: async (tokens) => {
+    await db.saveTokens(userId, tokens);
+  },
+});
+```
 
 ## Usage
 
-### Basic Usage
+### Basic
 
 ```typescript
 import { copilot } from "ai-sdk-provider-github-copilot";
 import { generateText } from "ai";
 
 const result = await generateText({
-  model: copilot("gpt-4o"),
-  prompt: "Explain quantum computing in simple terms",
+  model: copilot("gpt-5.2"),
+  prompt: "Explain quantum computing",
 });
 
 console.log(result.text);
@@ -58,7 +78,7 @@ import { copilot } from "ai-sdk-provider-github-copilot";
 import { streamText } from "ai";
 
 const result = await streamText({
-  model: copilot("claude-sonnet-4"),
+  model: copilot("claude-sonnet-4-5"),
   prompt: "Write a poem about coding",
 });
 
@@ -67,52 +87,74 @@ for await (const chunk of result.textStream) {
 }
 ```
 
-### Custom Provider Instance
+### GitHub Enterprise
 
 ```typescript
 import { createCopilot } from "ai-sdk-provider-github-copilot";
 
 const copilot = createCopilot({
-  // Optional: GitHub Enterprise URL
   enterpriseUrl: "https://github.mycompany.com",
-  // Optional: Custom headers
-  headers: {
-    "X-Custom-Header": "value",
-  },
-});
-
-const result = await generateText({
-  model: copilot("gpt-4o"),
-  prompt: "Hello!",
 });
 ```
 
 ## Available Models
 
-GitHub Copilot provides access to various models. The available models may change based on your subscription:
+### OpenAI
 
-| Model ID            | Description                 |
-| ------------------- | --------------------------- |
-| `gpt-4o`            | OpenAI GPT-4o               |
-| `gpt-4o-mini`       | OpenAI GPT-4o Mini          |
-| `gpt-4.1`           | OpenAI GPT-4.1              |
-| `gpt-4.1-mini`      | OpenAI GPT-4.1 Mini         |
-| `gpt-4.1-nano`      | OpenAI GPT-4.1 Nano         |
-| `claude-sonnet-4`   | Anthropic Claude Sonnet 4   |
-| `claude-3.5-sonnet` | Anthropic Claude 3.5 Sonnet |
-| `gemini-2.0-flash`  | Google Gemini 2.0 Flash     |
-| `gemini-2.5-pro`    | Google Gemini 2.5 Pro       |
-| `o1`                | OpenAI o1                   |
-| `o1-mini`           | OpenAI o1 Mini              |
-| `o3-mini`           | OpenAI o3 Mini              |
+| Model             | Description     |
+| ----------------- | --------------- |
+| `gpt-5.2`         | GPT-5.2         |
+| `gpt-5.2-pro`     | GPT-5.2 Pro     |
+| `gpt-5.1`         | GPT-5.1         |
+| `gpt-5`           | GPT-5           |
+| `gpt-5-mini`      | GPT-5 Mini      |
+| `gpt-5-nano`      | GPT-5 Nano      |
+| `gpt-4.5-preview` | GPT-4.5 Preview |
+| `gpt-4.1`         | GPT-4.1         |
+| `gpt-4.1-mini`    | GPT-4.1 Mini    |
+| `gpt-4.1-nano`    | GPT-4.1 Nano    |
+| `gpt-4o`          | GPT-4o          |
+| `gpt-4o-mini`     | GPT-4o Mini     |
+| `o3`              | o3              |
+| `o3-mini`         | o3 Mini         |
+| `o1`              | o1              |
 
-You can also use any model ID string that GitHub Copilot supports.
+### Anthropic
+
+| Model                      | Description       |
+| -------------------------- | ----------------- |
+| `claude-sonnet-4-5`        | Claude Sonnet 4.5 |
+| `claude-opus-4-5`          | Claude Opus 4.5   |
+| `claude-opus-4-1`          | Claude Opus 4.1   |
+| `claude-opus-4-0`          | Claude Opus 4.0   |
+| `claude-sonnet-4-0`        | Claude Sonnet 4.0 |
+| `claude-haiku-4-5`         | Claude Haiku 4.5  |
+| `claude-3-7-sonnet-latest` | Claude 3.7 Sonnet |
+| `claude-3-5-haiku-latest`  | Claude 3.5 Haiku  |
+
+### Google
+
+| Model                    | Description           |
+| ------------------------ | --------------------- |
+| `gemini-3-pro-preview`   | Gemini 3 Pro          |
+| `gemini-3-flash-preview` | Gemini 3 Flash        |
+| `gemini-2.5-pro`         | Gemini 2.5 Pro        |
+| `gemini-2.5-flash`       | Gemini 2.5 Flash      |
+| `gemini-2.5-flash-lite`  | Gemini 2.5 Flash Lite |
+| `gemini-2.0-flash`       | Gemini 2.0 Flash      |
+| `gemini-2.0-flash-lite`  | Gemini 2.0 Flash Lite |
+
+Any string model ID is also accepted for new models.
+
+## Token Refresh
+
+GitHub Copilot API tokens expire every ~30 minutes. The provider automatically refreshes them using your long-lived GitHub OAuth token. Use the `onTokenRefresh` callback to persist refreshed tokens.
 
 ## API Reference
 
 ### `login(enterpriseUrl?: string): Promise<void>`
 
-Initiates the GitHub OAuth device flow for authentication.
+Starts GitHub OAuth device flow authentication.
 
 ### `logout(): void`
 
@@ -120,23 +162,32 @@ Clears stored authentication tokens.
 
 ### `isAuthenticated(): boolean`
 
-Returns whether the user has stored authentication tokens.
+Returns whether valid tokens exist.
 
 ### `createCopilot(settings?: CopilotProviderSettings): CopilotProvider`
 
-Creates a new Copilot provider instance with custom settings.
+Creates a provider instance with custom settings.
+
+#### Settings
+
+| Option           | Type                                               | Description            |
+| ---------------- | -------------------------------------------------- | ---------------------- |
+| `enterpriseUrl`  | `string`                                           | GitHub Enterprise URL  |
+| `headers`        | `Record<string, string>`                           | Custom request headers |
+| `getTokens`      | `() => CopilotTokens \| Promise<CopilotTokens>`    | Custom token loader    |
+| `onTokenRefresh` | `(tokens: CopilotTokens) => void \| Promise<void>` | Token refresh callback |
 
 ### `copilot`
 
-Default provider instance (requires prior authentication via `login()`).
+Default provider instance using file-based auth.
 
 ## Disclaimer
 
-**This is an unofficial community provider** and is not affiliated with or endorsed by GitHub or Microsoft. By using this provider:
+This is an **unofficial community provider** not affiliated with GitHub or Microsoft.
 
-- You understand that your data will be sent to GitHub Copilot's servers
-- You agree to comply with [GitHub's Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service)
-- You acknowledge this software is provided "as is" without warranties of any kind
+- Your data is sent to GitHub Copilot's servers
+- Comply with [GitHub's Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service)
+- Provided "as is" without warranties
 
 ## License
 
